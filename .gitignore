@@ -12,6 +12,9 @@ node_modules/
 npm-debug.log*
 pnpm-debug.log*
 
+# cf CLI project config (contains account ids)
+.cfrc
+
 # environment variables
 .env
 .env.*
