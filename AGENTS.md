@@ -7,17 +7,9 @@ This file provides guidance to agentic coding tools when working with code in th
 1. **Worker name**: Update `name` in `cloudflare.config.ts` and `package.json` to your new Worker name
 2. **README**: Update README.md with your project information
 3. **Test files**: Update the greeting strings in `src/index.ts` and `test/index.test.ts`, and rename the test file if appropriate
-4. **Deploy workflow**: Activate the deploy workflow by renaming it:
+4. **Workers Builds**: Deploys run on Cloudflare's [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/), not GitHub Actions. Tell the user to connect the repository in the Cloudflare dashboard (Worker → **Settings** → **Build**), leaving the build command empty and setting the deploy command to `pnpm run deploy` (`cf deploy` builds and deploys in one step).
 
-   ```bash
-   mv .github/workflows/deploy.yml.template .github/workflows/deploy.yml
-   ```
-
-5. **GitHub Secrets**: The deploy workflow needs Cloudflare credentials:
-   - `CLOUDFLARE_API_TOKEN`: Create at https://dash.cloudflare.com/profile/api-tokens using the "Edit Cloudflare Workers" template. The user must do this themselves, then set it with `gh secret set CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`: Find with `pnpm exec cf accounts list` (after `cf auth login`), then `gh secret set CLOUDFLARE_ACCOUNT_ID`
-
-   For `CLAUDE_CODE_OAUTH_TOKEN` (used by claude.yml): Tell the user to open Claude Code and run the `/install-github-app` command, which will guide them through setting up the GitHub app and automatically add the secret to their repository. Note: The user must be a repository admin to install the GitHub app and add secrets.
+5. **GitHub Secrets**: For `CLAUDE_CODE_OAUTH_TOKEN` (used by claude.yml): Tell the user to open Claude Code and run the `/install-github-app` command, which will guide them through setting up the GitHub app and automatically add the secret to their repository. Note: The user must be a repository admin to install the GitHub app and add secrets.
 
 6. **Repository Settings and Branch Protection**: Configure repository settings and branch protection rules using the GitHub CLI. Get the current repository name first:
 
@@ -103,7 +95,7 @@ A standalone Cloudflare Worker built with Vite+ and the Cloudflare Vite plugin.
 - `pnpm check` — format check, lint, and type check in one pass (`vp check`)
 - `pnpm fix` — apply formatting and safe lint fixes
 - `pnpm build` — production build
-- `pnpm deploy` — build and deploy (`cf deploy`; requires `cf auth login` or `CLOUDFLARE_API_TOKEN`)
+- `pnpm deploy` — build and deploy (`cf deploy`; requires `cf auth login` or `CLOUDFLARE_API_TOKEN`). Production deploys normally happen via Workers Builds on push to main, not from CI or local machines
 
 ## Configuration Architecture
 
