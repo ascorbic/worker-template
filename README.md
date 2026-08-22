@@ -7,7 +7,7 @@ Template for standalone Cloudflare Workers.
 - [Vite+](https://viteplus.dev/) (`vp`) — dev server, build, test, lint, format, and type checking in one toolchain
 - [`cf`](https://www.npmjs.com/package/cf) — the Cloudflare CLI (technical preview), for deploys and everything Cloudflare
 - [`@cloudflare/vite-plugin`](https://developers.cloudflare.com/workers/vite-plugin/) with the experimental `cloudflare.config.ts` config format
-- [`@cloudflare/vitest-pool-workers`](https://developers.cloudflare.com/workers/testing/vitest-integration/) — tests run inside workerd
+- [`@cloudflare/vitest-plugin`](https://developers.cloudflare.com/workers/testing/vitest-integration/) — tests run inside workerd
 - TypeScript, pnpm
 
 ## Commands

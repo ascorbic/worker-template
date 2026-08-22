@@ -82,7 +82,7 @@ After setup, remove this section from AGENTS.md.
 A standalone Cloudflare Worker built with Vite+ and the Cloudflare Vite plugin.
 
 - `src/index.ts` — the Worker entrypoint
-- `test/` — Vitest tests, run inside workerd via `@cloudflare/vitest-pool-workers`
+- `test/` — Vitest tests, run inside workerd via `@cloudflare/vitest-plugin`
 - `cloudflare.config.ts` — Worker configuration (the experimental `cf`-CLI-native format; there is no wrangler.jsonc)
 - `compatibility.ts` — compatibility date/flags, shared between the Worker config and the test runtime
 - `vite.config.ts` — unified Vite+ config: Vite plugins, Vitest, oxlint, and oxfmt
