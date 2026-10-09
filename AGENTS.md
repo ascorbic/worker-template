@@ -4,10 +4,10 @@ This file provides guidance to agentic coding tools when working with code in th
 
 **This is currently a template repository.** If you see this message, check if this is a new repo based on the template, by seeing if the git remote is ascorbic/worker-template. If not, you need to set up a new project by updating the following:
 
-1. **Worker name**: Update `name` in `cloudflare.config.ts` and `package.json` to your new Worker name
+1. **Worker name**: Update `worker.name` in `cloudflare.config.ts` and `name` in `package.json` to your new Worker name
 2. **README**: Update README.md with your project information
-3. **Test files**: Update the greeting strings in `src/index.ts` and `test/index.test.ts`, and rename the test file if appropriate
-4. **Workers Builds**: Deploys run on Cloudflare's [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/), not GitHub Actions. Tell the user to connect the repository in the Cloudflare dashboard (Worker → **Settings** → **Build**), leaving the build command empty and setting the deploy command to `pnpm run deploy` (`cf deploy` builds and deploys in one step).
+3. **Test files**: Update the greeting string in `src/index.ts` and the matching assertion in `test/index.test.ts`, and rename the test file if appropriate
+4. **Workers Builds**: Deploys run on Cloudflare's [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/), not GitHub Actions. Tell the user to connect the repository in the Cloudflare dashboard (Worker → **Settings** → **Build**), leaving the build command empty and setting the deploy command to `pnpm run deploy` (`vp build`, then `cf deploy --prebuilt`).
 
 5. **GitHub Secrets**: For `CLAUDE_CODE_OAUTH_TOKEN` (used by claude.yml): Tell the user to open Claude Code and run the `/install-github-app` command, which will guide them through setting up the GitHub app and automatically add the secret to their repository. Note: The user must be a repository admin to install the GitHub app and add secrets.
 
@@ -82,34 +82,36 @@ After setup, remove this section from AGENTS.md.
 A standalone Cloudflare Worker built with Vite+ and the Cloudflare Vite plugin.
 
 - `src/index.ts` — the Worker entrypoint
-- `test/` — Vitest tests, run inside workerd via `@cloudflare/vitest-plugin`
-- `cloudflare.config.ts` — Worker configuration (the experimental `cf`-CLI-native format; there is no wrangler.jsonc)
+- `test/` — Vitest tests in Node. Integration tests run the built Worker in Miniflare (`test/harness.ts`); `test/global-setup.ts` builds it first
+- `cloudflare.config.ts` — Worker configuration, via `defineConfig` from `cf/config` (there is no wrangler.jsonc, and no Wrangler dependency at all)
 - `compatibility.ts` — compatibility date/flags, shared between the Worker config and the test runtime
 - `vite.config.ts` — unified Vite+ config: Vite plugins, Vitest, oxlint, and oxfmt
-- `worker-configuration.d.ts` — generated types; committed. Regenerated automatically while `pnpm dev` runs
+- `.cloudflare/types/` — generated `Env` and runtime types; not committed. `cf workers types` regenerates them (runs on `postinstall`, or `pnpm types`)
 
 ## Commands
 
-- `pnpm dev` — start the dev server (`vp dev`; `cf dev` also works and delegates to it)
-- `pnpm test` — run tests in the Workers runtime
+- `pnpm dev` — start the dev server (`vp dev`). `cf dev` and `cf build` expect a `vite` binary, which Vite+ doesn't provide, so use `vp`
+- `pnpm test` — build the Worker, then run tests against it in Miniflare
 - `pnpm check` — format check, lint, and type check in one pass (`vp check`)
 - `pnpm fix` — apply formatting and safe lint fixes
 - `pnpm build` — production build
-- `pnpm deploy` — build and deploy (`cf deploy`; requires `cf auth login` or `CLOUDFLARE_API_TOKEN`). Production deploys normally happen via Workers Builds on push to main, not from CI or local machines
+- `pnpm types` — regenerate the types in `.cloudflare/types/` (`cf workers types`)
+- `pnpm deploy` — `vp build` then `cf deploy --prebuilt` (requires `cf auth login` or `CLOUDFLARE_API_TOKEN`). Production deploys normally happen via Workers Builds on push to main, not from CI or local machines
 
 ## Configuration Architecture
 
-- **`cloudflare.config.ts` is the source of truth for the Worker**: name, entrypoint, compatibility, bindings, observability. It uses the experimental new config format (`experimental.newConfig` in the Vite plugin), which both the `cf` CLI and plain `vp`/Vite commands read. `defineWorker` is imported from `@cloudflare/vite-plugin/experimental-config` — do not import it from `@cloudflare/config` directly, or the generated types stop resolving (the two packages carry different unique symbols).
+- **`cloudflare.config.ts` is the source of truth for the Worker**: name, entrypoint, compatibility, bindings, observability. It uses `defineConfig({ worker: { ... } })` from `cf/config`, which both the `cf` CLI and the Vite plugin read.
 - The entrypoint uses the `with { type: "cf-worker" }` import attribute. This is what makes `Env` and `exports` inference work — keep that form when changing the entrypoint.
-- **Bindings**: declare them in `cloudflare.config.ts` (e.g. `env: { MY_KV: bindings.kv() }` with `bindings` from the same import). The `Env` type in `worker-configuration.d.ts` is inferred from them — run `pnpm dev` briefly after config changes to regenerate it, and commit the result.
-- **`compatibility.ts`** exists so the Vitest runtime (`cloudflareTest` in vite.config.ts) always matches the deployed runtime. Extra exports are not allowed in `cloudflare.config.ts` (its exports are schema-validated), which is why this is a separate file.
-- **Version pins that must move together**: the `vitest` devDependency and the `vitest` override in `pnpm-workspace.yaml` are pinned to the version bundled by vite-plus (check with `pnpm exec vp toolchain`). `vite` is aliased to `@voidzero-dev/vite-plus-core` (as a devDependency and an override) so every package resolves the same Vite — do not add a real `vite` dependency.
+- **Bindings**: declare them in `cloudflare.config.ts` (e.g. `env: { MY_KV: bindings.kv() }` with `bindings` from the same import). The `Env` type is inferred from them — run `pnpm types` after config changes. If tests need the bindings, declare them for Miniflare in `test/harness.ts` too, and keep the two in step.
+- **`compatibility.ts`** exists so the test runtime (`test/harness.ts`) always matches the deployed runtime. Extra exports are not allowed in `cloudflare.config.ts` (its exports are schema-validated), which is why this is a separate file.
+- **Version pins that must move together**: the `vite@*` and `vitest@*` overrides in `pnpm-workspace.yaml` pin Vite to `@voidzero-dev/vite-plus-core` at the installed `vite-plus` version, and Vitest to the version `vp toolchain vitest` reports. Update them whenever `vite-plus` changes. There are no direct `vite` or `vitest` dependencies: import test APIs from `vite-plus/test`.
+- **`miniflare`** is pinned to the version `cf` and `@cloudflare/vite-plugin` use (check with `pnpm why miniflare`), so tests run on the same runtime as dev.
 
 ## Testing
 
-- Tests run inside workerd. Import test APIs from `cloudflare:workers` (`env`, `exports`) — `exports.default.fetch()` replaces the deprecated `SELF`, and `env` from `cloudflare:test` is also deprecated.
-- `test/env.d.ts` wires the `ProvidedEnv` type to the generated `Env`.
-- For integration tests against the production build, use `createTestHarness()` from `wrangler` pointed at the built output (`dist/<worker_name>/wrangler.json` after `pnpm build`).
+- Unit tests run in Node. Integration tests use `startWorker()` from `test/harness.ts`, which loads the built Worker (`.cloudflare/output/v0/workers/default/bundle/index.js`) into Miniflare; use `mf.dispatchFetch()` for HTTP. Create the instance in `beforeAll` and dispose of it in `afterAll`.
+- `test/global-setup.ts` runs `vp build` once per test run, with `VITEST` unset so `vite.config.ts` loads the Cloudflare plugin.
+- `test/tsconfig.json` extends the root config with Node types; the root `tsconfig.json` excludes `test`.
 
 ## Development Workflow
 
